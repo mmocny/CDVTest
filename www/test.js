@@ -25,27 +25,125 @@ var exec = require('cordova/exec');
 
 var contentEl,
     createActionButtonFn,
-    logFn;
+    logFn,
+    jasmine,
+    jasmineEnv,
+    jasmineInterface;
 
 /******************************************************************************/
 
-function init(contentEl_, createActionButtonFn_, logFn_) {
+exports.init = function(contentEl_, createActionButtonFn_, logFn_) {
   contentEl = contentEl_;
   createActionButtonFn = createActionButtonFn_;
   logFn = logFn_;
+
+
+  jasmine = jasmineRequire.core(jasmineRequire);
+  jasmineRequire.html(jasmine);
+
+  jasmineEnv = jasmine.getEnv();
+
+  jasmineInterface = {
+    describe: function(description, specDefinitions) {
+      return jasmineEnv.describe(description, specDefinitions);
+    },
+
+    xdescribe: function(description, specDefinitions) {
+      return jasmineEnv.xdescribe(description, specDefinitions);
+    },
+
+    it: function(desc, func) {
+      return jasmineEnv.it(desc, func);
+    },
+
+    xit: function(desc, func) {
+      return jasmineEnv.xit(desc, func);
+    },
+
+    beforeEach: function(beforeEachFunction) {
+      return jasmineEnv.beforeEach(beforeEachFunction);
+    },
+
+    afterEach: function(afterEachFunction) {
+      return jasmineEnv.afterEach(afterEachFunction);
+    },
+
+    expect: function(actual) {
+      return jasmineEnv.expect(actual);
+    },
+
+    pending: function() {
+      return jasmineEnv.pending();
+    },
+
+    addMatchers: function(matchers) {
+      return jasmineEnv.addMatchers(matchers);
+    },
+
+    spyOn: function(obj, methodName) {
+      return jasmineEnv.spyOn(obj, methodName);
+    },
+
+    clock: jasmineEnv.clock,
+
+    jsApiReporter: new jasmine.JsApiReporter({
+      timer: new jasmine.Timer()
+    })
+  };
 }
 
-function addAutoTest() {
+/******************************************************************************/
+
+exports.runAutoTests = function() {
+  var queryString = new jasmine.QueryString({
+    getWindowLocation: function() { return window.location; }
+  });
+
+  // TODO: move all of catching to raise so we don't break our brains
+  var catchingExceptions = queryString.getParam("catch");
+  jasmineEnv.catchExceptions(typeof catchingExceptions === "undefined" ? true : catchingExceptions);
+
+  var htmlReporter = new jasmine.HtmlReporter({
+    env: jasmineEnv,
+    queryString: queryString,
+    onRaiseExceptionsClick: function() { queryString.setParam("catch", !jasmineEnv.catchingExceptions()); },
+    getContainer: function() { return contentEl; },
+    createElement: function() { return document.createElement.apply(document, arguments); },
+    createTextNode: function() { return document.createTextNode.apply(document, arguments); },
+    timer: new jasmine.Timer()
+  });
+
+  jasmineEnv.addReporter(jasmineInterface.jsApiReporter);
+  jasmineEnv.addReporter(htmlReporter);
+
+  var specFilter = new jasmine.HtmlSpecFilter({
+    filterString: function() { return queryString.getParam("spec"); }
+  });
+
+  jasmineEnv.specFilter = function(spec) {
+    return specFilter.matches(spec.getFullName());
+  };
+
+  htmlReporter.initialize();
+  jasmineEnv.execute();
 }
 
-function addManualTest(title, handler) {
+/******************************************************************************/
+
+// eval this!
+exports.injectJasmineInterface = function(target, targetName) {
+  var ret = "";
+  for (var property in jasmineInterface) {
+    target[property] = jasmineInterface[property];
+    ret += 'var ' + property + ' = this[\'' + property + '\'];\n';
+  }
+  return ret;
+}
+
+/******************************************************************************/
+
+exports.addManualTest = function(title, handler) {
   createActionButtonFn(title, handler);
 }
 
 /******************************************************************************/
-
-module.exports = {
-  init: init,
-  addAutoTest: addAutoTest,
-  addManualTest: addManualTest,
-};
