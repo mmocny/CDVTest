@@ -88,7 +88,9 @@ exports.init = function(contentEl_, createActionButtonFn_, logFn_) {
 
     jsApiReporter: new jasmine.JsApiReporter({
       timer: new jasmine.Timer()
-    })
+    }),
+
+    jasmine: jasmine,
   };
 }
 
@@ -98,6 +100,8 @@ exports.runAutoTests = function() {
   var queryString = new jasmine.QueryString({
     getWindowLocation: function() { return window.location; }
   });
+
+  jasmine.DEFAULT_TIMEOUT_INTERVAL = 300;
 
   // TODO: move all of catching to raise so we don't break our brains
   var catchingExceptions = queryString.getParam("catch");
